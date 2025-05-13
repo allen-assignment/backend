@@ -76,7 +76,8 @@ def get_AllMenuItems(request):
             'category':{
                 'id': item.category.id,
                 'name': item.category.category_name
-            }
+            },
+            'description': item.description
 
         })
     return JsonResponse({'menuItems': data}, status=200)
