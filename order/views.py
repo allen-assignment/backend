@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -51,13 +53,18 @@ def new_order(request):
                 quantity=quantity,
                 subtotal=subtotal
             )
+        tax_rate = Decimal('0.10')
+        tax_amount = total_price * tax_rate
+        total_price += tax_amount
+
         order.total_price = total_price
         order.save()
 
         return JsonResponse({
             'message': 'Order created successfully',
             'order_id': order.id,
-            'total_price':float(order.total_price)
+            'tax': float(tax_amount),
+            'total_price': float(order.total_price)
         }, status=200)
 
     except json.JSONDecodeError:
