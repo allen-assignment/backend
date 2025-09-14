@@ -1,3 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Packaging / build
+*.egg*
+build/
+dist/
+.eggs/
+*.spec
+
+# Env & OS（保留 .env，不忽略）
+*.local
+.python-version
+.DS_Store
+.venv/
+venv/
+env/
+
+# Django
+*.sqlite3
+/staticfiles/
+media/
+/staticfiles/*
+
+# Keep migrations tracked
+**/migrations/**/__pycache__/
+
+# Tests & coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
 .idea/
-*.iml
-*.xml
