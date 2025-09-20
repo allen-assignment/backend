@@ -39,8 +39,6 @@ INSTALLED_APPS = [
     'order.apps.OrderConfig',
     'user.apps.UserConfig',
     'menu.apps.MenuConfig',
-    'corsheaders',
-
 ]
 
 MIDDLEWARE = [
@@ -55,7 +53,6 @@ MIDDLEWARE = [
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 ROOT_URLCONF = 'dish_order_backend.urls'
-CORS_ALLOW_ALL_ORIGINS = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
