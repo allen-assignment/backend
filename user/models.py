@@ -29,7 +29,7 @@ class User(models.Model):
 class Merchant(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, unique=True)
-    user_id = models.BigIntegerField(null=True, blank=True)  # 对应 User 表的主键
+    user_id = models.BigIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
