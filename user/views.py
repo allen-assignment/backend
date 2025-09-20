@@ -98,7 +98,7 @@ def user_login(request):
                 return JsonResponse({'error': 'User not existed'}, status=404)
 
             if check_password(password, user.password):
-                return JsonResponse({'message': 'Login success', 'username': user.username})
+                return JsonResponse({'message': 'Login success', 'username': user.username,'user_id': user.id })
             else:
                 return JsonResponse({'error': 'Incorrect password'}, status=401)
 
@@ -144,8 +144,30 @@ def user_register(request):
                     user_id=user.id
                 )
 
-            return JsonResponse({'message': 'register success', 'username': user.username})
+            return JsonResponse({'message': 'register success', 'username': user.username,'user_id': user.id})
         except json.JSONDecodeError:
             return JsonResponse({'error': 'invalid JSON'}, status=400)
+
+    return JsonResponse({'error': 'method error'}, status=405)
+
+@csrf_exempt
+def get_user_by_id(request):
+    if request.method == 'GET':
+        user_id = request.GET.get('user_id')
+
+        if not user_id:
+            return JsonResponse({'error': 'user_id is required'}, status=400)
+
+        try:
+            user = User.objects.get(id=user_id)
+            return JsonResponse({
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'birth_date': user.birth_date,
+                'usertype': user.usertype
+            })
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
 
     return JsonResponse({'error': 'method error'}, status=405)
