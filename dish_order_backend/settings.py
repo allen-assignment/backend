@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'order.apps.OrderConfig',
     'user.apps.UserConfig',
     'menu.apps.MenuConfig',
-
 ]
 
 MIDDLEWARE = [
@@ -52,9 +51,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'dish_order_backend.urls'
-CORS_ALLOW_ALL_ORIGINS = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -80,9 +79,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'dish_order',
-        'USER': 'root123',
-        'PASSWORD': 'admin123.',
-        'HOST': 'mysqlproject.mysql.database.azure.com',
+        'USER': 'admin6016',
+        'PASSWORD': 'Demo6016',
+        'HOST': 'demomysql6016.mysql.database.azure.com',
         'PORT': '3306',
         'OPTIONS': {
             'ssl': True,

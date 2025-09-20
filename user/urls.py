@@ -6,4 +6,5 @@ urlpatterns = [
     path('register', views.user_register),
 
     path('getUserById', views.get_user_by_id),
+    path("vector-search", views.vector_search),
 ]
