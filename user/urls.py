@@ -4,4 +4,5 @@ from . import views
 urlpatterns = [
     path('login', views.user_login),
     path('register', views.user_register),
+    path("vector-search", views.vector_search),
 ]
