@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
@@ -40,7 +41,7 @@ def vector_search(request):
     restaurant_id = data.get("restaurant_id", "1")
 
     if not text_to_search:
-        return JsonResponse({"error": "参数 text 不能为空"}, status=400)
+        return JsonResponse({"error": "text cannot be null"}, status=400)
 
     try:
 
@@ -126,29 +127,39 @@ def user_register(request):
                 return JsonResponse({'error': 'user existed'}, status=400)
 
             hashed_password = make_password(password)
-
-            user = User.objects.create(
-                username=username,
-                password=hashed_password,
-                email=email,
-                birth_date=birth_date,
-                usertype=usertype
-            )
-            if usertype == 0:
-                if not merchant_name:
-                    return JsonResponse({'error': 'merchant_name is required for merchant users'}, status=400)
-
-                Merchant.objects.create(
-                    name=merchant_name,
-                    email=email,
-                    user_id=user.id
-                )
-
-            return JsonResponse({'message': 'register success', 'username': user.username,'user_id': user.id})
         except json.JSONDecodeError:
             return JsonResponse({'error': 'invalid JSON'}, status=400)
+        try:
+            with transaction.atomic():
+                user = User.objects.create(
+                    username=username,
+                    password=hashed_password,
+                    email=email,
+                    birth_date=birth_date,
+                    usertype=usertype
+                )
 
-    return JsonResponse({'error': 'method error'}, status=405)
+                if usertype == 0:
+                    if not merchant_name:
+                        raise ValueError('merchant_name is required for merchant users')
+
+                    Merchant.objects.create(
+                        name=merchant_name,
+                        email=email,
+                        user_id=user.id
+                    )
+                return JsonResponse({
+                    'message': 'register success',
+                    'username': user.username,
+                    'user_id': user.id
+                })
+
+        except ValueError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': 'registration failed', 'detail': str(e)}, status=500)
+
+
 
 @csrf_exempt
 def get_user_by_id(request):
