@@ -1,8 +1,8 @@
 from django.db import models
 
-
 # Create your models here.
 class MenuCategory(models.Model):
+    merchant_id = models.BigIntegerField(null=True, blank=True)
     category_name = models.CharField(max_length=255)
     description = models.TextField(max_length=255,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -25,6 +25,11 @@ class MenuItem(models.Model):
     description = models.TextField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    feature_one = models.CharField(max_length=255, blank=True, null=True)
+    feature_two = models.CharField(max_length=255, blank=True, null=True)
+    feature_three = models.CharField(max_length=255, blank=True, null=True)
+
+
 
     class Meta:
         db_table = 'menuitem'
