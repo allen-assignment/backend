@@ -147,3 +147,6 @@ CACHES = {
         "TIMEOUT": 900,
     },
 }
+
+AZURE_CONNECTION_STRING = os.getenv("AZURE_CONNECTION_STRING")
+AZURE_BLOB_CONTAINER    = os.getenv("AZURE_BLOB_CONTAINER", "menu-images")

@@ -7,7 +7,7 @@ import json, io, csv, uuid, hashlib
 from django.core.cache import caches
 from .ocr_function import analyze_layout, parse_to_items, _price_to_decimal, COMPLIMENTARY_RE, TAG_SET
 from decimal import Decimal
-
+from .menu_image_storage import upload_file
 
 # Create your views here.
 
@@ -69,50 +69,6 @@ def add_menuItem(request):
         return JsonResponse({'error': 'invalid JSON'}, status=400)
 
 
-# Modify menu items
-@csrf_exempt
-@require_http_methods(["POST"])
-def update_menuItem(request, item_id=None):
-    try:
-        data = json.loads(request.body or b"{}")
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "invalid JSON"}, status=400)
-
-    item_id = item_id or data.get("id") or data.get("item_id")
-    if not item_id:
-        return JsonResponse({"error": "item_id is required"}, status=400)
-
-    try:
-        item = MenuItem.objects.get(id=item_id)
-    except MenuItem.DoesNotExist:
-        return JsonResponse({"error": "Menu item not found"}, status=404)
-
-    updatable_fields = ["name", "price", "inventory", "image_url", "description"]
-    for f in updatable_fields:
-        if f in data and data[f] is not None:
-            setattr(item, f, data[f])
-
-    if "category_id" in data and data["category_id"] is not None:
-        try:
-            cat = MenuCategory.objects.get(id=data["category_id"])
-        except MenuCategory.DoesNotExist:
-            return JsonResponse({"error": "Category does not exist"}, status=404)
-        item.category = cat
-
-    if "isAvailable" in data and data["isAvailable"] is not None:
-        try:
-            v = int(data["isAvailable"])
-        except (TypeError, ValueError):
-            return JsonResponse({"error": "isAvailable must be 0 or 1"}, status=400)
-        if v not in (0, 1):
-            return JsonResponse({"error": "isAvailable must be 0 or 1"}, status=400)
-        try:
-            item.isAvailable = bool(v)
-        except Exception:
-            item.isAvailable = v
-
-    item.save()
-    return JsonResponse({"message": "menu item updated", "id": item.id}, status=200)
 
 
 # Delete item
@@ -176,6 +132,9 @@ def get_AllMenuItems(request):
         },
         "merchant_id": it.category.merchant_id,
         "description": it.description or "",
+        "feature_one": it.feature_one,
+        "feature_two": it.feature_two,
+        "feature_three": it.feature_three,
     } for it in qs]
 
     return JsonResponse({
@@ -388,5 +347,75 @@ def ocr_import(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+# Modify menu items
+@csrf_exempt
+@require_http_methods(["POST"])
+def update_menuItem(request):
+    if not (request.content_type or "").startswith("multipart/form-data"):
+        return JsonResponse({"error": "use multipart/form-data"}, status=400)
+
+    item_id = request.POST.get("item_id") or request.POST.get("id")
+    if not item_id:
+        return JsonResponse({"error": "item_id is required"}, status=400)
+    try:
+        iid = int(item_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "item_id must be an integer"}, status=400)
+
+    try:
+        item = MenuItem.objects.select_related("category").get(id=iid)
+    except MenuItem.DoesNotExist:
+        return JsonResponse({"error": "Menu item not found"}, status=404)
+
+    f = request.FILES.get("file")
+    blob = None
+
+    try:
+        with transaction.atomic():
+            if f:
+                mid = getattr(item.category, "merchant_id", 0) or 0
+                blob = upload_file(mid, f)
+                item.image_url = blob["url"]
+
+            val = request.POST.get("name")
+            if val is not None and val != "":
+                item.name = val
+
+            val = request.POST.get("price")
+            if val is not None and val != "":
+                item.price = val
+
+            val = request.POST.get("inventory")
+            if val is not None and val != "":
+                try:
+                    item.inventory = int(val)
+                except Exception:
+                    pass
+
+            val = request.POST.get("description")
+            if val is not None:
+                item.description = val
+
+            val = request.POST.get("category_id")
+            if val:
+                try:
+                    cat = MenuCategory.objects.get(id=int(val))
+                    item.category = cat
+                except Exception:
+                    pass
 
 
+            val = request.POST.get("isAvailable")
+            if val is not None and val != "":
+                item.isAvailable = str(val) == "1"
+
+            item.save()
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    resp = {
+        "ok": True,
+        "item_id": item.id,
+        "image_url": item.image_url or "",
+    }
+    return JsonResponse(resp, status=200)
