@@ -119,6 +119,7 @@ def user_register(request):
             birth_date = data.get('birth_date')
             usertype = int(data.get('usertype', 1))
             merchant_name = data.get('merchantName')
+            taste_preferences=data.get('tastePreferences')
 
             if not all([username, password]):
                 return JsonResponse({'error': 'username and password must not be null'}, status=400)
@@ -136,7 +137,8 @@ def user_register(request):
                     password=hashed_password,
                     email=email,
                     birth_date=birth_date,
-                    usertype=usertype
+                    usertype=usertype,
+                    taste_preferences=taste_preferences
                 )
 
                 if usertype == 0:

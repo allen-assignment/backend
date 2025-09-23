@@ -8,6 +8,7 @@ class User(models.Model):
     usertype = models.IntegerField()
     email = models.EmailField(max_length=255)
     password = models.CharField(max_length=255)
+    taste_preferences = models.CharField(max_length=255)
     birth_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
