@@ -99,7 +99,10 @@ def user_login(request):
                 return JsonResponse({'error': 'User not existed'}, status=404)
 
             if check_password(password, user.password):
-                return JsonResponse({'message': 'Login success', 'username': user.username,'user_id': user.id })
+                if user.usertype == 0:
+                    merchant = Merchant.objects.get(user_id=user.id)
+                    return JsonResponse({'message': 'Login success', 'username': user.username,'user_email': user.email,'user_id': user.id,'user_type':user.usertype, 'merchant_id': merchant.id,'merchant_name': merchant.name}, status=200)
+                return JsonResponse({'message': 'Login success', 'username': user.username,'user_email': user.email,'user_id': user.id,'user_type':user.usertype, 'taste_preferences':user.taste_preferences}, status=200)
             else:
                 return JsonResponse({'error': 'Incorrect password'}, status=401)
 
@@ -119,6 +122,7 @@ def user_register(request):
             birth_date = data.get('birth_date')
             usertype = int(data.get('usertype', 1))
             merchant_name = data.get('merchantName')
+            taste_preferences=data.get('tastePreferences')
 
             if not all([username, password]):
                 return JsonResponse({'error': 'username and password must not be null'}, status=400)
@@ -136,7 +140,8 @@ def user_register(request):
                     password=hashed_password,
                     email=email,
                     birth_date=birth_date,
-                    usertype=usertype
+                    usertype=usertype,
+                    taste_preferences=taste_preferences
                 )
 
                 if usertype == 0:
