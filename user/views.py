@@ -1,5 +1,6 @@
 from django.db import transaction
-from django.shortcuts import render
+import jwt
+import datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import User, Merchant
@@ -14,6 +15,7 @@ import json
 azure_openai_endpoint = "https://comp6016-openai.openai.azure.com/"
 deployment = "text-embedding-3-small"
 api_key_azure_openai = "2JLTamBK1Rvyngw4Th4apu7ztsYaPzYGxMyMxnRKKwdyfHQ2pEuEJQQJ99BHACYeBjFXJ3w3AAABACOGVqdb"
+SECRET_KEY = "compassignment"
 
 client = AzureOpenAI(
     api_key=api_key_azure_openai,
@@ -99,10 +101,29 @@ def user_login(request):
                 return JsonResponse({'error': 'User not existed'}, status=404)
 
             if check_password(password, user.password):
+                payload = {
+                    "user_id": user.id,
+                    "username": user.username,
+                    "user_email": user.email,
+                    "user_type": user.usertype,
+                    "taste_preferences": user.taste_preferences,
+                    "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+                }
+                token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
                 if user.usertype == 0:
                     merchant = Merchant.objects.get(user_id=user.id)
-                    return JsonResponse({'message': 'Login success', 'username': user.username,'user_email': user.email,'user_id': user.id,'user_type':user.usertype, 'merchant_id': merchant.id,'merchant_name': merchant.name}, status=200)
-                return JsonResponse({'message': 'Login success', 'username': user.username,'user_email': user.email,'user_id': user.id,'user_type':user.usertype, 'taste_preferences':user.taste_preferences}, status=200)
+                    payload = {
+                        "user_id": user.id,
+                        "username": user.username,
+                        "user_email": user.email,
+                        "merchant_id": merchant.id,
+                        "merchant_name": merchant.name,
+                        "user_type": user.usertype,
+                        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+                    }
+                    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+                    return JsonResponse({'message': 'Login success', 'token':token}, status=200)
+                return JsonResponse({'message': 'Login success', 'token': token}, status=200)
             else:
                 return JsonResponse({'error': 'Incorrect password'}, status=401)
 
@@ -187,3 +208,20 @@ def get_user_by_id(request):
             return JsonResponse({'error': 'User not found'}, status=404)
 
     return JsonResponse({'error': 'method error'}, status=405)
+
+@csrf_exempt
+def decode_token(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        token = data.get('token')
+        if not token:
+            return JsonResponse({'error': 'token is required'}, status=400)
+        try:
+            decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            return JsonResponse({'message': 'Decode success', 'userinfo': decoded})
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({'error': 'token expired'}, status=401)
+        except jwt.InvalidTokenError:
+            return JsonResponse({'error': 'invalid token'}, status=401)
+    else:
+        return JsonResponse({'error': 'method error'}, status=405)
