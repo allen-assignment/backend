@@ -218,7 +218,7 @@ def decode_token(request):
             return JsonResponse({'error': 'token is required'}, status=400)
         try:
             decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            return JsonResponse({'message': 'Decode success', 'userinfo': decoded})
+            return JsonResponse({'message': 'Decode success', 'userinfo': decoded}, status=200)
         except jwt.ExpiredSignatureError:
             return JsonResponse({'error': 'token expired'}, status=401)
         except jwt.InvalidTokenError:
