@@ -8,12 +8,14 @@ from django.core.cache import caches
 from .ocr_function import analyze_layout, parse_to_items, _price_to_decimal, COMPLIMENTARY_RE, TAG_SET
 from decimal import Decimal
 from .menu_image_storage import upload_file
-
+from token_decorators import require_token, inject_identity_into_body, enforce_query_identity, optional_token
 # Create your views here.
 
 # Add menu categories
 @csrf_exempt
 @require_http_methods(['POST'])
+@require_token
+@inject_identity_into_body
 def add_menuCategory(request):
     try:
         data = json.loads(request.body)
@@ -25,10 +27,13 @@ def add_menuCategory(request):
             return JsonResponse({'error': 'merchant_id is required'}, status=400)
         if not category_name:
             return JsonResponse({'error': 'category_name cannot be empty'}, status=400)
+        if int(merchant_id) != int(request.merchant_id_from_token):
+            return JsonResponse({'error': 'Forbidden: merchant_id mismatch'}, status=403)
 
         category = MenuCategory.objects.create(merchant_id=merchant_id, category_name=category_name, description=description)
         return JsonResponse({'message': 'category created success',  'merchant_id': int(merchant_id), 'category_name': category.category_name},
             status=201)
+
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
@@ -36,6 +41,8 @@ def add_menuCategory(request):
 # Add menu items
 @csrf_exempt
 @require_http_methods(['POST'])
+@require_token
+@inject_identity_into_body
 def add_menuItem(request):
     try:
         data = json.loads(request.body)
@@ -74,6 +81,8 @@ def add_menuItem(request):
 # Delete item
 @csrf_exempt
 @require_http_methods(["DELETE", "POST"])
+@require_token
+@inject_identity_into_body
 def delete_menuItem(request, item_id=None):
     data = {}
     if request.method == "DELETE" and request.body:
@@ -103,11 +112,77 @@ def delete_menuItem(request, item_id=None):
 # Get all menu items
 @csrf_exempt
 @require_http_methods(["GET"])
+@optional_token
+# def get_AllMenuItems(request):
+#     merchant_id = request.GET.get("merchant_id")
+#     if not merchant_id:
+#         return JsonResponse({"error": "merchant_id is required"}, status=400)
+#
+#     try:
+#         mid = int(merchant_id)
+#     except (TypeError, ValueError):
+#         return JsonResponse({"error": "merchant_id must be an integer"}, status=400)
+#
+#     qs = (
+#         MenuItem.objects
+#         .select_related("category")
+#         .filter(category__merchant_id=mid)
+#         .order_by("id")
+#     )
+#
+#     data = [{
+#         "id": it.id,
+#         "name": it.name,
+#         "image_url": it.image_url,
+#         "price": str(it.price),
+#         "inventory": it.inventory,
+#         "category": {
+#             "id": it.category_id,
+#             "name": it.category.category_name,
+#         },
+#         "merchant_id": it.category.merchant_id,
+#         "description": it.description or "",
+#         "feature_one": it.feature_one,
+#         "feature_two": it.feature_two,
+#         "feature_three": it.feature_three,
+#     } for it in qs]
+#
+#     return JsonResponse({
+#         "merchant_id": mid,
+#         "count": len(data),
+#         "menuItems": data
+#     }, status=200)
 def get_AllMenuItems(request):
+    is_merchant = str(getattr(request, "user_type", "1")) == "0" and getattr(request, "merchant_id_from_token", None) is not None
+
+    if is_merchant:
+        mid = int(request.merchant_id_from_token)
+        qs = (
+            MenuItem.objects
+            .select_related("category")
+            .filter(category__merchant_id=mid)
+            .order_by("id")
+        )
+        data = [{
+            "id": it.id,
+            "name": it.name,
+            "image_url": it.image_url,
+            "price": str(it.price),
+            "inventory": it.inventory,
+            "category": {"id": it.category_id, "name": it.category.category_name},
+            "merchant_id": it.category.merchant_id,
+            "description": it.description or "",
+            "feature_one": it.feature_one,
+            "feature_two": it.feature_two,
+            "feature_three": it.feature_three,
+            "isAvailable": getattr(it, "isAvailable", True),
+        } for it in qs]
+
+        return JsonResponse({"merchant_id": mid, "count": len(data), "menuItems": data}, status=200)
+
     merchant_id = request.GET.get("merchant_id")
     if not merchant_id:
         return JsonResponse({"error": "merchant_id is required"}, status=400)
-
     try:
         mid = int(merchant_id)
     except (TypeError, ValueError):
@@ -120,29 +195,20 @@ def get_AllMenuItems(request):
         .order_by("id")
     )
 
+    if hasattr(MenuItem, "isAvailable"):
+        qs = qs.filter(isAvailable=True)
+
     data = [{
         "id": it.id,
         "name": it.name,
         "image_url": it.image_url,
         "price": str(it.price),
-        "inventory": it.inventory,
-        "category": {
-            "id": it.category_id,
-            "name": it.category.category_name,
-        },
+        "category": {"id": it.category_id, "name": it.category.category_name},
         "merchant_id": it.category.merchant_id,
         "description": it.description or "",
-        "feature_one": it.feature_one,
-        "feature_two": it.feature_two,
-        "feature_three": it.feature_three,
     } for it in qs]
 
-    return JsonResponse({
-        "merchant_id": mid,
-        "count": len(data),
-        "menuItems": data
-    }, status=200)
-
+    return JsonResponse({"merchant_id": mid, "count": len(data), "menuItems": data}, status=200)
 
 # def _items_to_csv_bytes(items):
 #     sio = io.StringIO(newline="")
@@ -163,6 +229,8 @@ PREVIEW_TTL = 900
 
 
 @csrf_exempt
+@require_http_methods(['POST'])
+@require_token
 def menu_ocr_upload(request):
     """
     POST /menu/ocr/upload/
@@ -225,6 +293,8 @@ def _tags_to_features(tags):
 
 @csrf_exempt
 @require_http_methods(["GET"])
+@require_token
+
 def ocr_preview_get(request, preview_id: str):
     """
     GET /menu/ocr/preview/<preview_id>/
@@ -239,6 +309,8 @@ def ocr_preview_get(request, preview_id: str):
 # Ocr Json store to database
 @csrf_exempt
 @require_http_methods(["POST"])
+@require_token
+@inject_identity_into_body
 def ocr_import(request):
     """
     POST /menu/ocr/import/
@@ -350,6 +422,7 @@ def ocr_import(request):
 # Modify menu items
 @csrf_exempt
 @require_http_methods(["POST"])
+@require_token
 def update_menuItem(request):
     if not (request.content_type or "").startswith("multipart/form-data"):
         return JsonResponse({"error": "use multipart/form-data"}, status=400)

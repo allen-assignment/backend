@@ -8,14 +8,16 @@ from .models import Order, OrderItem
 from user.models import User
 from menu.models import MenuItem
 import json
+from token_decorators import require_token, inject_identity_into_body, enforce_query_identity
 
 
-
-# Create your views here.
 
 # Add a new order for user on the current merchant
 @csrf_exempt
 @require_http_methods(['POST'])
+@require_token
+@inject_identity_into_body
+
 def new_order(request):
     try:
         data = json.loads(request.body)
@@ -78,6 +80,8 @@ def new_order(request):
 # Get specific user order information on current merchant
 @csrf_exempt
 @require_http_methods(["GET"])
+@require_token
+@enforce_query_identity
 def get_all_orders(request):
     try:
         user_id = request.GET.get('user_id')
@@ -169,6 +173,8 @@ def get_all_orders(request):
 # Update order status to cancelled = 0 or Paid =2
 @csrf_exempt
 @require_http_methods(["POST"])
+@require_token
+@inject_identity_into_body
 def cancel_order(request):
     try:
         data = json.loads(request.body)
