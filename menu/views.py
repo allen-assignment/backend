@@ -42,39 +42,79 @@ def add_menuCategory(request):
 @csrf_exempt
 @require_http_methods(['POST'])
 @require_token
-@inject_identity_into_body
 def add_menuItem(request):
-    try:
-        data = json.loads(request.body)
-        category_id = data.get('category_id')
-        image_url = data.get('image_url')
-        name = data.get('name')
-        price = data.get('price')
-        inventory = data.get('inventory')
-        description = data.get('description')
+    if not (request.content_type or "").startswith("multipart/form-data"):
+        return JsonResponse({"error": "use multipart/form-data"}, status=400)
 
-        if not category_id or not name or image_url is None or price is None or inventory is None:
-            return JsonResponse({'error': 'All fields cannot be empty'}, status=400)
-
-        try:
-            category = MenuCategory.objects.get(id=category_id)
-        except MenuCategory.DoesNotExist:
-            return JsonResponse({'error': 'Category does not exist'}, status=404)
-
-        menuItem = MenuItem.objects.create(
-            image_url=image_url,
-            name=name,
-            price=price,
-            inventory=inventory,
-            category=category,
-            description=description
+    category_id = (request.POST.get("category_id") or "").strip()
+    name = (request.POST.get("name") or "").strip()
+    price_raw = (request.POST.get("price") or "").strip()
+    inventory_raw = (request.POST.get("inventory") or "").strip()
+    description = request.POST.get("description")
+    isAvailable_raw = request.POST.get("isAvailable")  # '1'/'0'
+    f = request.FILES.get("file")
+    if not category_id or not name or not price_raw or not inventory_raw or not f:
+        return JsonResponse(
+            {"error": "category_id, name, price, inventory, file are required (multipart/form-data)"},
+            status=400
         )
 
-        return JsonResponse({'message': 'menu item created success', 'name': menuItem.name})
+    try:
+        cid = int(category_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "category_id must be an integer"}, status=400)
 
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'invalid JSON'}, status=400)
+    try:
+        price = Decimal(price_raw)
+    except Exception:
+        return JsonResponse({"error": "price must be a valid decimal"}, status=400)
 
+    try:
+        inventory = int(inventory_raw)
+    except Exception:
+        return JsonResponse({"error": "inventory must be an integer"}, status=400)
+
+    is_available = True
+    if isAvailable_raw is not None and str(isAvailable_raw).strip() != "":
+        is_available = (str(isAvailable_raw).strip() == "1")
+
+    try:
+        category = MenuCategory.objects.get(id=cid)
+    except MenuCategory.DoesNotExist:
+        return JsonResponse({"error": "Category does not exist"}, status=404)
+
+    mid = getattr(request, "merchant_id_from_token", None)
+    try:
+        mid = int(mid) if mid is not None else 0
+    except Exception:
+        mid = 0
+
+    try:
+        with transaction.atomic():
+            blob = upload_file(mid, f)
+            image_url = blob["url"]
+
+            menu_item = MenuItem.objects.create(
+                image_url=image_url,
+                name=name,
+                price=price,
+                inventory=inventory,
+                category=category,
+                description=description or "",
+                isAvailable=is_available,
+            )
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "message": "menu item created success",
+                "item_id": menu_item.id,
+                "image_url": menu_item.image_url,
+            },
+            status=201
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 
@@ -113,45 +153,6 @@ def delete_menuItem(request, item_id=None):
 @csrf_exempt
 @require_http_methods(["GET"])
 @optional_token
-# def get_AllMenuItems(request):
-#     merchant_id = request.GET.get("merchant_id")
-#     if not merchant_id:
-#         return JsonResponse({"error": "merchant_id is required"}, status=400)
-#
-#     try:
-#         mid = int(merchant_id)
-#     except (TypeError, ValueError):
-#         return JsonResponse({"error": "merchant_id must be an integer"}, status=400)
-#
-#     qs = (
-#         MenuItem.objects
-#         .select_related("category")
-#         .filter(category__merchant_id=mid)
-#         .order_by("id")
-#     )
-#
-#     data = [{
-#         "id": it.id,
-#         "name": it.name,
-#         "image_url": it.image_url,
-#         "price": str(it.price),
-#         "inventory": it.inventory,
-#         "category": {
-#             "id": it.category_id,
-#             "name": it.category.category_name,
-#         },
-#         "merchant_id": it.category.merchant_id,
-#         "description": it.description or "",
-#         "feature_one": it.feature_one,
-#         "feature_two": it.feature_two,
-#         "feature_three": it.feature_three,
-#     } for it in qs]
-#
-#     return JsonResponse({
-#         "merchant_id": mid,
-#         "count": len(data),
-#         "menuItems": data
-#     }, status=200)
 def get_AllMenuItems(request):
     is_merchant = str(getattr(request, "user_type", "1")) == "0" and getattr(request, "merchant_id_from_token", None) is not None
 
