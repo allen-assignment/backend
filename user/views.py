@@ -61,7 +61,7 @@ def vector_search(request):
 
         search_payload = {
             "count": True,
-            "select": "id, name, text, restaurant_id",
+            "select": "id, name, restaurant_id",
             "filter": f"restaurant_id eq '{restaurant_id}'",
             "vectorFilterMode": "preFilter",
             "vectorQueries": [
