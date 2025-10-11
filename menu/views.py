@@ -53,9 +53,9 @@ def add_menuItem(request):
     description = request.POST.get("description")
     isAvailable_raw = request.POST.get("isAvailable")  # '1'/'0'
     f = request.FILES.get("file")
-    if not category_id or not name or not price_raw or not inventory_raw or not f:
+    if not category_id or not name or not price_raw or not inventory_raw:
         return JsonResponse(
-            {"error": "category_id, name, price, inventory, file are required (multipart/form-data)"},
+            {"error": "category_id, name, price, inventory are required"},
             status=400
         )
 
@@ -91,8 +91,10 @@ def add_menuItem(request):
 
     try:
         with transaction.atomic():
-            blob = upload_file(mid, f)
-            image_url = blob["url"]
+            image_url = ""
+            if f:
+                blob = upload_file(mid, f)
+                image_url = blob.get("url", "") or ""
 
             menu_item = MenuItem.objects.create(
                 image_url=image_url,
@@ -109,7 +111,7 @@ def add_menuItem(request):
                 "ok": True,
                 "message": "menu item created success",
                 "item_id": menu_item.id,
-                "image_url": menu_item.image_url,
+                "image_url": menu_item.image_url or "",
             },
             status=201
         )
