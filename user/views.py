@@ -3,6 +3,7 @@ import jwt
 import datetime
 from django.views.decorators.csrf import csrf_exempt
 
+from token_decorators import require_token, enforce_query_identity
 from .models import User, Merchant
 from django.http import JsonResponse
 from django.contrib.auth.hashers import check_password, make_password
@@ -188,6 +189,8 @@ def user_register(request):
 
 
 @csrf_exempt
+@require_token
+@enforce_query_identity
 def get_user_by_id(request):
     if request.method == 'GET':
         user_id = request.GET.get('user_id')
