@@ -1,4 +1,4 @@
-from tkinter import Menu
+
 
 from django.contrib import admin
 from .models import MenuItem, MenuCategory

@@ -123,8 +123,8 @@ def user_login(request):
                         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
                     }
                     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-                    return JsonResponse({'message': 'Login success', 'token':token}, status=200)
-                return JsonResponse({'message': 'Login success', 'token': token}, status=200)
+                    return JsonResponse({'message': 'Login success', 'token':token,'user_type':user.usertype}, status=200)
+                return JsonResponse({'message': 'Login success', 'token': token,'user_type':user.usertype}, status=200)
             else:
                 return JsonResponse({'error': 'Incorrect password'}, status=401)
 
