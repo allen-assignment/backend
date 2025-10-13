@@ -116,6 +116,15 @@ def enforce_query_identity(view):
         qd = request.GET.copy()
         utype = str(claims.get("user_type", "1"))
 
+        uid = claims.get("user_id")
+        if not uid and uid != 0:
+            return JsonResponse({"error": "user_id missing in token"}, status=403)
+
+        if qd.get("user_id") and qd.get("user_id") != str(uid):
+            return JsonResponse({"error": "Forbidden: user_id mismatch"}, status=403)
+
+        qd["user_id"] = str(uid)
+
         if utype == "0":
             mid = claims.get("merchant_id")
             if not mid and mid != 0:
@@ -126,18 +135,18 @@ def enforce_query_identity(view):
                 return JsonResponse({"error": "Forbidden: merchant_id mismatch"}, status=403)
 
             qd["merchant_id"] = str(mid)
-            if "user_id" in qd:
-                qd.pop("user_id", None)
-
-        else:
-            uid = claims.get("user_id")
-            if not uid and uid != 0:
-                return JsonResponse({"error": "user_id missing in token"}, status=403)
-
-            if qd.get("user_id") and qd.get("user_id") != str(uid):
-                return JsonResponse({"error": "Forbidden: user_id mismatch"}, status=403)
-
-            qd["user_id"] = str(uid)
+        #     if "user_id" in qd:
+        #         qd.pop("user_id", None)
+        #
+        # else:
+        #     uid = claims.get("user_id")
+        #     if not uid and uid != 0:
+        #         return JsonResponse({"error": "user_id missing in token"}, status=403)
+        #
+        #     if qd.get("user_id") and qd.get("user_id") != str(uid):
+        #         return JsonResponse({"error": "Forbidden: user_id mismatch"}, status=403)
+        #
+        #     qd["user_id"] = str(uid)
 
 
         request.GET = qd
