@@ -249,29 +249,21 @@ def menu_ocr_upload(request):
     try:
         file_bytes = f.read()
         layout = analyze_layout(file_bytes)
-        items = parse_to_items(layout)
+        raw_items = parse_to_items(layout) or []
+        items = []
+        for obj in raw_items:
+            it = dict(obj or {})
+            desc = it.get("description")
+            it["description"] = (desc if isinstance(desc, str) else "") or ""
+            items.append(it)
+        # items = parse_to_items(layout)
         preview_id = f"pv{uuid.uuid4().hex[:8]}"
 
         cache.set(preview_id, {"status": "PENDING", "items": items}, timeout=PREVIEW_TTL)
 
-        # wants_csv = (
-        #         request.GET.get("format") == "csv"
-        #         or request.POST.get("format") == "csv"
-        #         or "text/csv" in (request.headers.get("Accept", "") or "")
-        # )
-        #
-        # if wants_csv:
-        #     csv_bytes = _items_to_csv_bytes(items)
-        #     filename_base = (getattr(f, "name", "menu") or "menu").rsplit(".", 1)[0]
-        #     resp = HttpResponse(csv_bytes, content_type="text/csv; charset=utf-8")
-        #     resp["Content-Disposition"] = f'attachment; filename="{filename_base}.csv"'
-        #     return resp
-
-
         return JsonResponse(
             {"preview_id": preview_id, "items": items},
             status=200,
-            # json_dumps_params={"ensure_ascii": False},
         )
 
     except Exception as e:
@@ -385,7 +377,7 @@ def ocr_import(request):
                 else:
                     price_dec = _price_to_decimal(price_text)
 
-                desc = (obj.get("description") or "").strip() or None
+                desc = (obj.get("description") or "").strip()
                 f1, f2, f3 = _tags_to_features(obj.get("tags") or [])
 
                 inventory = 10

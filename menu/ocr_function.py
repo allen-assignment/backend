@@ -286,7 +286,6 @@ def _parse_stream(lines):
             continue
 
 
-
         if _looks_like_name(t):
             if cur:
                 items.append(cur)
