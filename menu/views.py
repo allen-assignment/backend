@@ -31,12 +31,45 @@ def add_menuCategory(request):
             return JsonResponse({'error': 'Forbidden: merchant_id mismatch'}, status=403)
 
         category = MenuCategory.objects.create(merchant_id=merchant_id, category_name=category_name, description=description)
-        return JsonResponse({'message': 'category created success',  'merchant_id': int(merchant_id), 'category_name': category.category_name},
+        return JsonResponse({
+            'message': 'category created success',
+            'merchant_id': int(merchant_id),
+            'id': category.id,
+            'category_name': category.category_name},
             status=201)
 
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+
+# Get all menu categories
+@csrf_exempt
+@require_http_methods(["GET"])
+@optional_token
+def get_AllMenuCategories(request):
+    merchant_id = request.merchant_id_from_token
+    category_id = request.GET.get('id')
+    if category_id:
+        try:
+            category = MenuCategory.objects.get(id=category_id, merchant_id=merchant_id)
+            return JsonResponse({
+                "id": category.id,
+                "merchant_id": category.merchant_id,
+                "category_name": category.category_name,
+                "description": category.description or ""
+            }, status=200)
+        except MenuCategory.DoesNotExist:
+            return JsonResponse({"error": "Category not found"}, status=404)
+
+    categories = MenuCategory.objects.filter(merchant_id=merchant_id).order_by('-id')
+    data = [{
+        "id": c.id,
+        "merchant_id": c.merchant_id,
+        "category_name": c.category_name,
+        "description": c.description or ""
+    } for c in categories]
+
+    return JsonResponse({"count": len(data), "categories": data}, status=200)
 
 # Add menu items
 @csrf_exempt
@@ -117,6 +150,7 @@ def add_menuItem(request):
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
 
 
@@ -324,7 +358,7 @@ def ocr_import(request):
 
     merchant_id = payload.get("merchant_id")
     preview_id = payload.get("preview_id")
-    items = payload.get("items")  # 可选
+    items = payload.get("items")
 
     if merchant_id is None:
         return JsonResponse({"error": "merchant_id is required"}, status=400)

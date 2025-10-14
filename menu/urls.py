@@ -9,5 +9,6 @@ urlpatterns = [
     path('ocr/import/', views.ocr_import, name='menu_ocr_import'),
     path('item/update/', views.update_menuItem, name='update_menuItem'),
     path('item/delete/', views.delete_menuItem, name='delete_menuItem'),
+    path('categories/', views.get_AllMenuCategories, name='get_AllMenuCategories'),
 ]
 
