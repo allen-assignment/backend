@@ -1,5 +1,6 @@
 # auth_decorators.py
 import os, json, jwt
+import datetime
 from functools import wraps
 from django.http import JsonResponse
 from django.conf import settings
@@ -33,6 +34,12 @@ def require_token(view):
         except jwt.InvalidTokenError:
             return JsonResponse({"error": "invalid token"}, status=401)
 
+        birth_date_str = claims.get("birth_date")
+        if birth_date_str:
+            try:
+                claims["birth_date"] = datetime.date.fromisoformat(birth_date_str)
+            except ValueError:
+                claims["birth_date"] = None
 
         request.claims = claims
         request.user_id = claims.get("user_id")
