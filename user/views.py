@@ -206,13 +206,26 @@ def get_user_by_id(request):
 
         try:
             user = User.objects.get(id=user_id)
-            return JsonResponse({
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'birth_date': user.birth_date,
-                'usertype': user.usertype
-            })
+            if user.usertype == 0:
+                merchant = Merchant.objects.get(user_id=user.id)
+                return JsonResponse({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "user_email": user.email,
+                    "merchant_id": merchant.id,
+                    "merchant_name": merchant.name,
+                    "user_type": user.usertype,
+                    "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+                })
+            else:
+                return JsonResponse({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "user_email": user.email,
+                    "user_type": user.usertype,
+                    "taste_preferences": user.taste_preferences,
+                    "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+                })
         except User.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
 
@@ -235,6 +248,7 @@ def decode_token(request):
             return JsonResponse({'error': 'invalid token'}, status=401)
     else:
         return JsonResponse({'error': 'method error'}, status=405)
+
 
 @csrf_exempt
 @require_token
@@ -272,6 +286,3 @@ def update_user_info(request):
         except Exception as e:
             return JsonResponse({'error': 'update failed', 'detail': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-
