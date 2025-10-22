@@ -17,6 +17,7 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    merchant_id = models.BigIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'order'

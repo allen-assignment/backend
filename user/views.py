@@ -3,6 +3,7 @@ import jwt
 import datetime
 from django.views.decorators.csrf import csrf_exempt
 
+from token_decorators import require_token, enforce_query_identity, inject_identity_into_body
 from .models import User, Merchant
 from django.http import JsonResponse
 from django.contrib.auth.hashers import check_password, make_password
@@ -10,6 +11,7 @@ import os
 from openai import AzureOpenAI
 import requests
 import json
+
 # Create your views here.
 
 azure_openai_endpoint = "https://comp6016-openai.openai.azure.com/"
@@ -27,6 +29,7 @@ search_endpoint = "https://comp6016-cognitive-search.search.windows.net"
 index_name = "dish_item"
 api_key_cog_search = "cCg3VoRZL1cMMNvBeg4j5LMH7VKo787y4KkdCZlaTZAzSeAazupM"
 search_url = f"{search_endpoint}/indexes/{index_name}/docs/search?api-version=2024-07-01"
+
 
 @csrf_exempt
 def vector_search(request):
@@ -52,7 +55,6 @@ def vector_search(request):
             model=deployment
         )
         embedding_vector = embedding_response.data[0].embedding
-
 
         headers = {
             "Content-Type": "application/json",
@@ -84,6 +86,7 @@ def vector_search(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+
 @csrf_exempt
 def user_login(request):
     if request.method == 'POST':
@@ -107,6 +110,7 @@ def user_login(request):
                     "user_email": user.email,
                     "user_type": user.usertype,
                     "taste_preferences": user.taste_preferences,
+                    "birth_date": user.birth_date.isoformat() if user.birth_date else None,
                     "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
                 }
                 token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -119,11 +123,14 @@ def user_login(request):
                         "merchant_id": merchant.id,
                         "merchant_name": merchant.name,
                         "user_type": user.usertype,
+                        "birth_date": user.birth_date.isoformat() if user.birth_date else None,
                         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
                     }
                     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-                    return JsonResponse({'message': 'Login success', 'token':token}, status=200)
-                return JsonResponse({'message': 'Login success', 'token': token}, status=200)
+                    return JsonResponse({'message': 'Login success', 'token': token, 'user_type': user.usertype},
+                                        status=200)
+                return JsonResponse({'message': 'Login success', 'token': token, 'user_type': user.usertype},
+                                    status=200)
             else:
                 return JsonResponse({'error': 'Incorrect password'}, status=401)
 
@@ -131,6 +138,7 @@ def user_login(request):
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     return JsonResponse({'error': 'method error'}, status=405)
+
 
 @csrf_exempt
 def user_register(request):
@@ -143,7 +151,7 @@ def user_register(request):
             birth_date = data.get('birth_date')
             usertype = int(data.get('usertype', 1))
             merchant_name = data.get('merchantName')
-            taste_preferences=data.get('tastePreferences')
+            taste_preferences = data.get('tastePreferences')
 
             if not all([username, password]):
                 return JsonResponse({'error': 'username and password must not be null'}, status=400)
@@ -186,8 +194,9 @@ def user_register(request):
             return JsonResponse({'error': 'registration failed', 'detail': str(e)}, status=500)
 
 
-
 @csrf_exempt
+@require_token
+@enforce_query_identity
 def get_user_by_id(request):
     if request.method == 'GET':
         user_id = request.GET.get('user_id')
@@ -197,17 +206,31 @@ def get_user_by_id(request):
 
         try:
             user = User.objects.get(id=user_id)
-            return JsonResponse({
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'birth_date': user.birth_date,
-                'usertype': user.usertype
-            })
+            if user.usertype == 0:
+                merchant = Merchant.objects.get(user_id=user.id)
+                return JsonResponse({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "user_email": user.email,
+                    "merchant_id": merchant.id,
+                    "merchant_name": merchant.name,
+                    "user_type": user.usertype,
+                    "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+                })
+            else:
+                return JsonResponse({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "user_email": user.email,
+                    "user_type": user.usertype,
+                    "taste_preferences": user.taste_preferences,
+                    "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+                })
         except User.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
 
     return JsonResponse({'error': 'method error'}, status=405)
+
 
 @csrf_exempt
 def decode_token(request):
@@ -225,3 +248,41 @@ def decode_token(request):
             return JsonResponse({'error': 'invalid token'}, status=401)
     else:
         return JsonResponse({'error': 'method error'}, status=405)
+
+
+@csrf_exempt
+@require_token
+@inject_identity_into_body
+def update_user_info(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_id = data.get('user_id')
+            username = data.get('update_username')
+            email = data.get('update_email')
+            birth_date = data.get('update_birth_date')
+            taste_preferences = data.get('update_taste_preferences')
+            user = User.objects.get(id=user_id)
+            if username:
+                user.username = username
+            if email:
+                user.email = email
+            if birth_date:
+                user.birth_date = birth_date
+            if taste_preferences:
+                user.taste_preferences = taste_preferences
+            user.save()
+            return JsonResponse({
+                'message': 'Update success',
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'birth_date': user.birth_date
+            }, status=200)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': 'update failed', 'detail': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

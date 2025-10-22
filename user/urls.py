@@ -8,4 +8,5 @@ urlpatterns = [
     path('getUserById', views.get_user_by_id),
     path("vector-search", views.vector_search),
     path('decode', views.decode_token),
+    path('updateuserinfo', views.update_user_info),
 ]

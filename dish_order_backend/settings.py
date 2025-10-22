@@ -9,11 +9,24 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# load env file
+load_dotenv(BASE_DIR / ".env")
+
+DOC_ENDPOINT = os.getenv("DOC_ENDPOINT", "")
+DOC_KEY = os.getenv("DOC_KEY", "")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -24,7 +37,7 @@ SECRET_KEY = 'django-insecure-nx6hnrr#n*rqr6ect1l70(q727tpoavvn=*chx55n-6q&8jh9v
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -39,6 +52,7 @@ INSTALLED_APPS = [
     'order.apps.OrderConfig',
     'user.apps.UserConfig',
     'menu.apps.MenuConfig',
+    'payment.apps.PaymentConfig'
 ]
 
 MIDDLEWARE = [
@@ -46,7 +60,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -57,7 +71,7 @@ ROOT_URLCONF = 'dish_order_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'static')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -127,3 +141,26 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "payments-cache",
+    },
+    "ocr_preview": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "ocr-preview-cache",
+        "TIMEOUT": 900,
+    },
+}
+
+AZURE_CONNECTION_STRING = os.getenv("AZURE_CONNECTION_STRING")
+AZURE_BLOB_CONTAINER    = os.getenv("AZURE_BLOB_CONTAINER", "menu-images")
+
+# === Stripe (env-based) ===
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+
+
